@@ -37,7 +37,6 @@ BiLoc/
 ├── BHViT/                 # Minimal BHViT backbone dependency used by BiLoc
 ├── diffoc_full_precision/ # Full-precision DiffLoc teacher code for KD training
 ├── img/                   # README figures
-├── BiLoc_ECCV26_YIN.pdf   # Paper draft
 ├── LICENSE
 └── README.md
 ```
@@ -209,8 +208,6 @@ checkpoints/
 └── biloc_oxford.pth
 ```
 
-For KD training or NCLT experiments, train the required teacher/student models
-yourself or provide your own checkpoint paths.
 
 ## Acknowledgements
 
