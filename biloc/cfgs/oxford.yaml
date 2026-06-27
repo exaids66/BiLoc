@@ -1,0 +1,170 @@
+ckpt: '../checkpoints/biloc_oxford.pth' # 训练/推理的默认模型权重路径
+seed: 7 # 随机种子
+exp_name: 'Oxford' # 实验名称（日志/可视化用）
+exp_dir: 'log/biloc_oxford' # 实验输出目录
+sampling_timesteps: 10 # 推理阶段 DDIM 采样步数
+
+train:
+    batch_size: 40 # 训练 batch 大小
+    val_batch_size: 40 # 验证 batch 大小
+    image_size: [32, 512] # 输入图像尺寸（H, W）
+    original_image_size: [32, 512] # 原始图像尺寸（H, W）
+    steps: 3 # 扩散训练步数
+    skip: 2 # 扩散步长跳跃
+    restart_num: 5 # warmup/重启相关参数
+    lr: 1e-3 # 学习率
+    weight_decay: 0.01 # 权重衰减
+    epochs: 120 # 训练总 epoch 数，默认151
+    ckpt_interval: 1 # 保存 ckpt 间隔
+    num_workers: 16 # DataLoader 进程数
+    eval_interval: 1 # 评估间隔（按 epoch）
+    print_interval: 200 # 日志打印间隔（按 step）
+    persistent_workers: True # DataLoader 是否保持 worker
+
+    pin_memory: True # DataLoader 是否 pin memory
+    clip_grad: 1.0 # 梯度裁剪阈值
+
+    cudnnbenchmark: True # cudnn benchmark 开关
+
+    warmup_sche: True # 是否使用 warmup + 余弦调度
+    dataset: 'Oxford' # 数据集名称
+    dataroot: '../data' # 数据集根目录
+
+profile: False # 是否启用性能分析
+
+KD:
+    teacher_cfg: '../diffoc_full_precision/cfgs/oxford.yaml' # 教师模型配置
+    teacher_ckpt: '../checkpoints/your_diffloc_teacher_oxford.pth' # 教师权重不随开源包发布，请自行训练或填写路径
+
+    weight: 0.8 # kd_loss 总权重
+    mask_ratio: 0.6 # IDA/topk 相关的通道比例
+    loss_type: 'entropy' # 蒸馏损失类型：entropy | weighted | hard_mask | topk | dual | adaptive_temp | sigma_map | it_corr | it_mutual
+
+    struct_weight: 0.05 # 结构蒸馏项权重（>0 启用）默认0.05
+    struct_loss_type: 'lckt' # 结构蒸馏损失类型：lckt | it_mutual
+
+    lckt_alpha: 0.5 # LCKT 特征/姿态 cost 混合系数
+    lckt_trans_w: 1.0 # LCKT 平移距离权重
+    lckt_rot_w: 1.0 # LCKT 旋转角距离权重
+    lckt_eps: 0.05 # LCKT Sinkhorn 熵正则系数
+    lckt_T: 1 # LCKT 外层迭代次数
+    lckt_K: 20 # LCKT 内层 Sinkhorn 迭代次数
+
+    kd_stop_epoch: null # kd_loss 早停起始 epoch（为 null 则不早停）
+    struct_stop_epoch: null # struct_loss 早停起始 epoch（为空则不早停）
+
+    importance_mode: 'ida_mask' # importance 构造方式：ida_mask | diff_soft | diff_sigmoid | diff_topk（sigma_map 模式不使用）
+
+    sigma_map_dir: null # 离线 sigma-map 根目录，结构为 <dir>/<frame_name>/sigma.npy
+    sigma_filename: 'sigma.npy' # sigma-map 文件名
+    sigma_missing: 'error' # 找不到 sigma-map 时的处理：error | warn
+    sigma_invert: True # 是否使用 1/sigma 作为重要性（sigma 越小越重要）
+    sigma_normalize: True # 是否将重要性归一化到 [0, 1]
+
+    kp_threshold: 0.5 # hard/soft mask 阈值
+    kp_tau: 1.0 # sigmoid 温度
+    kp_use_sigmoid: True # weighted loss 是否使用 sigmoid 权重
+
+    dual_alpha: 1.0 # dual loss 中局部项权重
+
+    t_min: 0.5 # adaptive_temp 最小温度
+    t_max: 2.0 # adaptive_temp 最大温度
+
+    it_alpha: 1.0 # ITLoss 的 alpha 指数
+    it_n_data: 1 # ITLoss 的样本计数占位
+
+    s_dim: null # 学生特征维度（为空则自动推断）
+    t_dim: null # 教师特征维度（为空则自动推断）
+
+
+MODEL:
+    _target_: models.DiffusionLocModel # 主模型类
+
+    IMAGE_FEATURE_EXTRACTOR:
+        _target_:               models.image_feature_extractor.ImageFeatureExtractor # 图像特征提取器
+        backbone:              "bhvit" # 主干网络类型
+        freeze:                 False # 是否冻结主干
+        in_channels:            5 # 输入通道数
+        new_patch_size:         [4, 16] # patch 大小
+        new_patch_stride:       [4, 16] # patch 步长
+        conv_stem:              'ConvStem'  # stem 类型：'none' or 'ConvStem'
+        stem_base_channels:     32 # stem 基础通道数
+        D_h:                    256 # stem 隐藏维度
+        image_size:             [32, 512] # 输入尺寸（H, W）
+        decoder:                'linear' # 解码器类型
+        pretrained_path:        null # 预训练权重路径
+        reuse_pos_emb:          true # 是否复用位置编码
+        reuse_patch_emb:        false # 是否复用 patch embedding（ConvStem 时通常为 false）
+        n_cls:                  1 # 语义类别数
+
+    DENOISER:
+        _target_: models.Denoiser # 去噪器模块
+        TRANSFORMER:
+            _target_:               models.denoiser.TransformerEncoderWrapper # Transformer 配置
+            d_model:                512 # 隐藏维度
+            nhead:                  4 # 注意力头数
+            num_encoder_layers:     8 # 编码层数
+            dim_feedforward:        1024 # 前馈层维度
+            dropout:                0.1 # dropout 比例
+            norm_first:             True # 是否 pre-norm
+            learnable_scaling:      True # 是否学习缩放系数
+
+
+    DIFFUSER:
+        _target_: models.GaussianDiffusion # 扩散器类型
+        beta_schedule: custom # beta 调度方式
+
+
+sensors:
+    name: 'Oxford32E' # 传感器名称
+    type: 'spherical' # 投影类型
+    proj_h: 32 # 投影高度
+    proj_w: 512 # 投影宽度
+    fov_up: 10. # 上视角
+    fov_down: -30. # 下视角
+    fov_left: -180 # 左视角
+    fov_right: 180 # 右视角
+    image_mean: # 归一化均值（按通道）
+        - 5.05
+        - 0.14
+        - -0.77
+        - -0.51
+        - 8.43
+        - 0
+
+    image_stds: # 归一化标准差（按通道）
+         - 7.94
+         - 5.12
+         - 7.74
+         - 1.04
+         - 13.72
+         - 1
+
+
+# Data augmentation config
+augmentation:
+  # flip
+  p_flipx: 0. # 水平翻转概率
+  p_flipy: 0.5 # 垂直翻转概率
+
+  # translation
+  p_transx: 0.5 # x 平移概率
+  trans_xmin: -5 # x 平移最小值
+  trans_xmax: 5 # x 平移最大值
+  p_transy: 0.5 # y 平移概率
+  trans_ymin: -3 # y 平移最小值
+  trans_ymax: 3 # y 平移最大值
+  p_transz: 0.5 # z 平移概率
+  trans_zmin: -1 # z 平移最小值
+  trans_zmax: 0. # z 平移最大值
+
+  # rotation
+  p_rot_roll: 0.5 # roll 旋转概率
+  rot_rollmin: -5 # roll 最小角度
+  rot_rollmax: 5 # roll 最大角度
+  p_rot_pitch: 0.5 # pitch 旋转概率
+  rot_pitchmin: -5 # pitch 最小角度
+  rot_pitchmax: 5 # pitch 最大角度
+  p_rot_yaw: 0.5 # yaw 旋转概率
+  rot_yawmin: -45 # yaw 最小角度
+  rot_yawmax: 45 # yaw 最大角度

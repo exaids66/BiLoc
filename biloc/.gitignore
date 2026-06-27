@@ -1,0 +1,19 @@
+# Ignore transient local files only.
+# Do not ignore logs, checkpoints, exported models, or result files; they are
+# preserved for rebuttal experiments.
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.DS_Store
+.idea/
+.vscode/
+
+*.swp
+*.swo
+*~

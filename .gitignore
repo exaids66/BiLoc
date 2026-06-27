@@ -1,0 +1,46 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.env
+.venv/
+env/
+venv/
+
+# Local editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Datasets and experiment outputs
+data/
+log/
+logs/
+*/log/
+*/logs/
+events.out.tfevents*
+*.jgz
+grad_cos.csv
+grad_cos_summary.json
+error_*.txt
+pred_*.txt
+gt_*.txt
+trajectory.png
+
+# Model artifacts
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.tflite
+*.engine
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
