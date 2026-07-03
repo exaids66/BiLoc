@@ -1,6 +1,6 @@
 # BiLoc: Learning 1-Bit LiDAR-based Localization with Auxiliary Objective
 
-This repository contains the official implementation of **BiLoc**.
+This repository contains the official implementation of **BiLoc**:  [Learning 1-Bit LiDAR-based Localization with Auxiliary Objective](https://arxiv.org/abs/2606.27729).
 
 BiLoc is designed for always-on LiDAR localization on resource-constrained
 platforms. It constrains both weights and activations to 1 bit, and uses a
