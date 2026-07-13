@@ -227,3 +227,6 @@ If this repository is useful for your research, please cite:
   year={2026}
 }
 ```
+## Contact
+
+Any problem, please contact the first author (Email: yin.kaijie at connect.um.edu.mo)
