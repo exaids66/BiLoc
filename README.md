@@ -239,4 +239,4 @@ If this repository is useful for your research, please cite:
 ```
 ## Contact
 
-Any problem, please contact the first author (Email: yin.kaijie at connect.um.edu.mo)
+Any problem, please contact the first author (Email: k-yin at mi.t.u-tokyo.ac.jp)
