@@ -206,7 +206,7 @@ are available on
 These are the checkpoints used for the BiLoc results in the paper.
 
 | Dataset | File | DDIM steps | Paper result |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- |
 | Oxford | `biloc_oxford.pth` | 10 | 7.56 m / 1.91 deg |
 | NCLT | `biloc_nclt.pth` | 15 | 3.14 m / 4.36 deg | 
 
