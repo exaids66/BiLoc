@@ -205,14 +205,11 @@ are available on
 [Google Drive](https://drive.google.com/drive/folders/1b-y6CfrnNoCXBgs6ZVrxTFipNvk1uTQo?usp=sharing).
 These are the checkpoints used for the BiLoc results in the paper.
 
-| Dataset | File | DDIM steps | Paper result | SHA-256 |
+| Dataset | File | DDIM steps | Paper result |
 | --- | --- | --- | --- | --- |
-| Oxford | `biloc_oxford.pth` | 10 | 7.56 m / 1.91 deg | `4acf6c439993b9694d38bf39ee943762b1d2c076b20779d3aaaa18490cfb5fb1` |
-| NCLT | `biloc_nclt.pth` | 15 | 3.14 m / 4.36 deg | `2362e78c67794b1b7d3b723638f20427f1e0ceb586be441a643a0c904814a81d` |
+| Oxford | `biloc_oxford.pth` | 10 | 7.56 m / 1.91 deg |
+| NCLT | `biloc_nclt.pth` | 15 | 3.14 m / 4.36 deg | 
 
-Each file is a plain `state_dict` (157,908,337 bytes) that loads into the model
-built from the corresponding config with `strict=True`. Teacher checkpoints are
-not released.
 
 Place the files as follows (paths relative to the repository root):
 
@@ -225,11 +222,6 @@ checkpoints/
 `biloc/cfgs/oxford.yaml` and `biloc/cfgs/nclt.yaml` already point to
 `../checkpoints/biloc_oxford.pth` and `../checkpoints/biloc_nclt.pth`.
 
-Verify the downloads:
-
-```bash
-sha256sum checkpoints/biloc_oxford.pth checkpoints/biloc_nclt.pth
-```
 
 
 ## Acknowledgements
