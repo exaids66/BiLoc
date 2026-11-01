@@ -41,9 +41,7 @@ BiLoc/
 └── README.md
 ```
 
-The release package keeps the BiLoc implementation and runtime dependencies only.
-Experiment logs, TensorBoard events, deployment helper copies, and local cache
-files are not included. The trained BiLoc checkpoints are hosted separately on
+The trained BiLoc checkpoints are hosted separately on
 Google Drive; see [Model Zoo](#model-zoo).
 
 ## Environment
@@ -78,9 +76,6 @@ conda activate biloc
 cd biloc
 ```
 
-The inherited `install.sh` is kept for reference, but it may not match the RTX
-5090 / CUDA 12.8 setup. Prefer using the `biloc` conda environment or
-recreating an equivalent PyTorch 2.8 + CUDA 12.8 environment.
 
 ## Data Preparation
 
