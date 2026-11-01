@@ -1,8 +1,3 @@
-"""
-@author: Wen Li
-@file: train.py
-@time: 2023/9/20 14:57
-"""
 import io
 import os
 import time
@@ -350,14 +345,6 @@ def t_error(pred_poses, gt_poses, pose_s, pose_mean):
 
 
 def val_translation(pred_p, gt_p, pose_s, pose_mean):
-    """
-    test model, compute error (numpy)
-    input:
-        pred_p: [3,]
-        gt_p: [3,]
-    returns:
-        translation error (m):
-    """
     pred_p = (pred_p * pose_s) + pose_mean
     gt_p = (gt_p * pose_s) + pose_mean
     error = torch.linalg.norm(gt_p - pred_p)

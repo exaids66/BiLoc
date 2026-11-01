@@ -157,7 +157,6 @@ def translation_angle(tvec_gt, tvec_pred, batch_size=None):
 
 
 def evaluate_translation_batch(t_gt, t, eps=1e-15, default_err=1e6):
-    """Normalize the translation vectors and compute the angle between them."""
     t_norm = torch.norm(t, dim=1, keepdim=True)
     t = t / (t_norm + eps)
 
@@ -196,7 +195,7 @@ class WarmupCosineRestarts(torch.optim.lr_scheduler._LRScheduler):
 
     def get_lr(self):
         if self.T_mult == 1:
-            i_restart = self.last_epoch // self.T_0  # 算出是否需要restart
+            i_restart = self.last_epoch // self.T_0
             T_cur = self.last_epoch - i_restart * self.T_0  #
         else:
             n = int(math.log((self.last_epoch / self.T_0 * (self.T_mult - 1) + 1), self.T_mult))
@@ -213,11 +212,6 @@ class WarmupCosineRestarts(torch.optim.lr_scheduler._LRScheduler):
 
 
 class WarmupCosineLR(toptim._LRScheduler):
-    ''' Warmup learning rate scheduler.
-        Initially, increases the learning rate from 0 to the final value, in a
-        certain number of steps. After this number of steps, each step decreases
-        LR exponentially.
-    '''
 
     def __init__(self, optimizer, lr, warmup_steps, momentum, max_steps):
         # cyclic params
@@ -256,7 +250,6 @@ class WarmupCosineLR(toptim._LRScheduler):
         else:
             return self.initial_scheduler.step(epoch)
 
-# 训练策略
 POWER = 0.9
 
 

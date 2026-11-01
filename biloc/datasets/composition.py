@@ -48,7 +48,6 @@ class MF(data.Dataset):
         mask = torch.stack([c[2] for c in clip], dim=0)   # (self.steps, 512)
         if self.include_vos:
             vos = self.vo_func(poses.unsqueeze(0))[0]
-            # 前3维是真值，后3维是相对位姿
             poses = torch.cat((poses, vos), dim=0)
 
         batch = {

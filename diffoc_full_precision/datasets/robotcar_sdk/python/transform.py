@@ -20,18 +20,6 @@ MATRIX_MATCH_TOLERANCE = 1e-4
 
 
 def build_se3_transform(xyzrpy):
-    """Creates an SE3 transform from translation and Euler angles.
-
-    Args:
-        xyzrpy (list[float]): translation and Euler angles for transform. Must have six components.
-
-    Returns:
-        numpy.matrixlib.defmatrix.matrix: SE3 homogeneous transformation matrix
-
-    Raises:
-        ValueError: if `len(xyzrpy) != 6`
-
-    """
     if len(xyzrpy) != 6:
         raise ValueError("Must supply 6 values to build transform")
 
@@ -42,18 +30,6 @@ def build_se3_transform(xyzrpy):
 
 
 def euler_to_so3(rpy):
-    """Converts Euler angles to an SO3 rotation matrix.
-
-    Args:
-        rpy (list[float]): Euler angles (in radians). Must have three components.
-
-    Returns:
-        numpy.matrixlib.defmatrix.matrix: 3x3 SO3 rotation matrix
-
-    Raises:
-        ValueError: if `len(rpy) != 3`.
-
-    """
     if len(rpy) != 3:
         raise ValueError("Euler angles must have three components")
 
@@ -71,19 +47,6 @@ def euler_to_so3(rpy):
 
 
 def so3_to_euler(so3):
-    """Converts an SO3 rotation matrix to Euler angles
-
-    Args:
-        so3: 3x3 rotation matrix
-
-    Returns:
-        numpy.matrixlib.defmatrix.matrix: list of Euler angles (size 3)
-
-    Raises:
-        ValueError: if so3 is not 3x3
-        ValueError: if a valid Euler parametrisation cannot be found
-
-    """
     if so3.shape != (3, 3):
         raise ValueError("SO3 matrix must be 3x3")
     roll = atan2(so3[2, 1], so3[2, 2])
@@ -103,17 +66,6 @@ def so3_to_euler(so3):
 
 
 def so3_to_quaternion(so3):
-    """Converts an SO3 rotation matrix to a quaternion
-
-    Args:
-        so3: 3x3 rotation matrix
-
-    Returns:
-        numpy.ndarray: quaternion [w, x, y, z]
-
-    Raises:
-        ValueError: if so3 is not 3x3
-    """
     if so3.shape != (3, 3):
         raise ValueError("SO3 matrix must be 3x3")
 
@@ -162,19 +114,6 @@ def so3_to_quaternion(so3):
 
 
 def se3_to_components(se3):
-    """Converts an SE3 rotation matrix to linear translation and Euler angles
-
-    Args:
-        se3: 4x4 transformation matrix
-
-    Returns:
-        numpy.matrixlib.defmatrix.matrix: list of [x, y, z, roll, pitch, yaw]
-
-    Raises:
-        ValueError: if se3 is not 4x4
-        ValueError: if a valid Euler parametrisation cannot be found
-
-    """
     if se3.shape != (4, 4):
         raise ValueError("SE3 transform must be a 4x4 matrix")
     xyzrpy = np.empty(6)

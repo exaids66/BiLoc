@@ -21,17 +21,6 @@ sys.path.append('.')
 from .transform import *
 
 def NCLT_interpolate_vo_poses(vo_path, pose_timestamps, origin_timestamp):
-    """Interpolate poses from visual odometry.
-
-    Args:
-        vo_path (str): path to file containing relative poses from visual odometry.
-        pose_timestamps (list[int]): UNIX timestamps at which interpolated poses are required.
-        origin_timestamp (int): UNIX timestamp of origin frame. Poses will be reported relative to this frame.
-
-    Returns:
-        list[numpy.matrixlib.defmatrix.matrix]: SE3 matrix representing interpolated pose for each requested timestamp.
-
-    """
     with open(vo_path) as vo_file:
         vo_reader = csv.reader(vo_file)
         headers = next(vo_file)
@@ -61,17 +50,6 @@ def NCLT_interpolate_vo_poses(vo_path, pose_timestamps, origin_timestamp):
     return interpolate_poses(vo_timestamps, abs_poses, pose_timestamps, origin_timestamp)
 
 def interpolate_vo_poses(vo_path, pose_timestamps, origin_timestamp):
-    """Interpolate poses from visual odometry.
-
-    Args:
-        vo_path (str): path to file containing relative poses from visual odometry.
-        pose_timestamps (list[int]): UNIX timestamps at which interpolated poses are required.
-        origin_timestamp (int): UNIX timestamp of origin frame. Poses will be reported relative to this frame.
-
-    Returns:
-        list[numpy.matrixlib.defmatrix.matrix]: SE3 matrix representing interpolated pose for each requested timestamp.
-
-    """
     with open(vo_path) as vo_file:
         vo_reader = csv.reader(vo_file)
         headers = next(vo_file)
@@ -102,17 +80,6 @@ def interpolate_vo_poses(vo_path, pose_timestamps, origin_timestamp):
 
 
 def interpolate_ins_poses(ins_path, pose_timestamps, origin_timestamp, use_rtk=False):
-    """Interpolate poses from INS.
-
-    Args:
-        ins_path (str): path to file containing poses from INS.
-        pose_timestamps (list[int]): UNIX timestamps at which interpolated poses are required.
-        origin_timestamp (int): UNIX timestamp of origin frame. Poses will be reported relative to this frame.
-
-    Returns:
-        list[numpy.matrixlib.defmatrix.matrix]: SE3 matrix representing interpolated pose for each requested timestamp.
-
-    """
     with open(ins_path) as ins_file:
         ins_reader = csv.reader(ins_file)
         headers = next(ins_file)
@@ -142,17 +109,6 @@ def interpolate_ins_poses(ins_path, pose_timestamps, origin_timestamp, use_rtk=F
 
 
 def interpolate_ins_poses_xmu(ins_path: object, pose_timestamps, origin_timestamp, use_rtk=False):
-    """Interpolate poses from INS.
-
-    Args:
-        ins_path (str): path to file containing poses from INS.
-        pose_timestamps (list[int]): UNIX timestamps at which interpolated poses are required.
-        origin_timestamp (int): UNIX timestamp of origin frame. Poses will be reported relative to this frame.
-
-    Returns:
-        list[numpy.matrixlib.defmatrix.matrix]: SE3 matrix representing interpolated pose for each requested timestamp.
-
-    """
     with open(ins_path) as ins_file:
         # ins_reader = csv.reader(ins_file)
         # headers = next(ins_file)
@@ -185,22 +141,6 @@ def interpolate_ins_poses_xmu(ins_path: object, pose_timestamps, origin_timestam
 
 
 def interpolate_poses(pose_timestamps, abs_poses, requested_timestamps, origin_timestamp):
-    """Interpolate between absolute poses.
-
-    Args:
-        pose_timestamps (list[int]): Timestamps of supplied poses. Must be in ascending order.
-        abs_poses (list[numpy.matrixlib.defmatrix.matrix]): SE3 matrices representing poses at the timestamps specified.
-        requested_timestamps (list[int]): Timestamps for which interpolated timestamps are required.
-        origin_timestamp (int): UNIX timestamp of origin frame. Poses will be reported relative to this frame.
-
-    Returns:
-        list[numpy.matrixlib.defmatrix.matrix]: SE3 matrix representing interpolated pose for each requested timestamp.
-
-    Raises:
-        ValueError: if pose_timestamps and abs_poses are not the same length
-        ValueError: if pose_timestamps is not in ascending order
-
-    """
     requested_timestamps.insert(0, origin_timestamp)
     requested_timestamps = np.array(requested_timestamps)
     pose_timestamps = np.array(pose_timestamps)

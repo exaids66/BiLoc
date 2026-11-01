@@ -1,8 +1,3 @@
-"""
-@author: Wen Li
-@file: oxford.py
-@time: 2023/9/18 19:27
-"""
 import os
 import h5py
 import torch

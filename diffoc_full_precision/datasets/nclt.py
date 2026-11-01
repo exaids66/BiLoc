@@ -1,8 +1,3 @@
-"""
-@author: Wen Li
-@file: oxford.py
-@time: 2023/9/18 19:27
-"""
 import os
 import h5py
 import torch
@@ -49,7 +44,6 @@ class NCLT(data.Dataset):
             if not os.path.isfile(h5_path):
                 print('interpolate ' + seq)
                 ts_raw = []
-                # 读入LiDAR时间戳，并从小到大排序
                 vel = os.listdir(seq_dir + '/velodyne_left')
                 for i in range(len(vel)):
                     ts_raw.append(int(vel[i][:-4]))

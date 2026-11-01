@@ -22,16 +22,6 @@ BAYER_MONO = 'rggb'
 
 
 def load_image(image_path, model=None):
-    """Loads and rectifies an image from file.
-
-    Args:
-        image_path (str): path to an image from the dataset.
-        model (camera_model.CameraModel): if supplied, model will be used to undistort image.
-
-    Returns:
-        numpy.ndarray: demosaiced and optionally undistorted image
-
-    """
     if model:
         camera = model.camera
     else:

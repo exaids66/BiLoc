@@ -5,9 +5,7 @@ import numpy as np
 import concurrent.futures
 
 
-def convert_nclt(x_s, y_s, z_s): # 输入点云转换函数
-    # 文档种提供的转换函数
-    # 原文档返回为x, y, z，但在绘制可视化图时z取负，此处先取负
+def convert_nclt(x_s, y_s, z_s):
     scaling = 0.005 # 5 mm
     offset = -100.0
 
@@ -18,7 +16,7 @@ def convert_nclt(x_s, y_s, z_s): # 输入点云转换函数
     return x, y, z
 
 
-def load_velodyne_binary_nclt(filename): # 读入二进制点云
+def load_velodyne_binary_nclt(filename):
     f_bin = open(filename, "rb")
     hits = []
     while True:

@@ -11,13 +11,6 @@ from os import path as osp
 from datasets.robotcar_sdk.python.transform import build_se3_transform
 
 def quaternion_to_matrix(quaternions):
-    """
-    Convert rotations given as quaternions to rotation matrices.
-    Args:
-        quaternions: quaternions with real part last, as tensor of shape (..., 4).
-    Returns:
-        Rotation matrices as tensor of shape (..., 3, 3).
-    """
     i, j, k, r = torch.unbind(quaternions, -1)
     two_s = 2.0 / (quaternions * quaternions).sum(-1)
 
@@ -40,37 +33,18 @@ def quaternion_to_matrix(quaternions):
 
 
 def vdot(v1, v2):
-  """
-  Dot product along the dim=1
-  :param v1: N x d
-  :param v2: N x d
-  :return: N x 1
-  """
   out = torch.mul(v1, v2)
   out = torch.sum(out, 1)
   return out
 
 
 def normalize(x, p=2, dim=0):
-  """
-  Divides a tensor along a certain dim by the Lp norm
-  :param x:
-  :param p: Lp norm
-  :param dim: Dimension to normalize along
-  :return:
-  """
   xn = x.norm(p=p, dim=dim)
   x = x / xn.unsqueeze(dim=dim)
   return x
 
 
 def qmult(q1, q2):
-  """
-  Multiply 2 quaternions
-  :param q1: Tensor N x 4
-  :param q2: Tensor N x 4
-  :return: quaternion product, Tensor N x 4
-  """
   q1s, q1v = q1[:, :1], q1[:, 1:]
   q2s, q2v = q2[:, :1], q2[:, 1:]
 
@@ -86,46 +60,23 @@ def qmult(q1, q2):
 
 
 def qinv(q):
-  """
-  Inverts quaternions
-  :param q: N x 4
-  :return: q*: N x 4
-  """
   q_inv = torch.cat((q[:, :1], -q[:, 1:]), dim=1)
   return q_inv
 
 
 def qexp_t_safe(q):
-  """
-  Applies exponential map to log quaternion (safe implementation that does not
-  maintain gradient flow)
-  :param q: N x 3
-  :return: N x 4
-  """
   q = torch.from_numpy(np.asarray([qexp(qq) for qq in q.numpy()],
                                   dtype=np.float32))
   return q
 
 
 def qlog_t_safe(q):
-  """
-  Applies the log map to a quaternion (safe implementation that does not
-  maintain gradient flow)
-  :param q: N x 4
-  :return: N x 3
-  """
   q = torch.from_numpy(np.asarray([qlog(qq) for qq in q.numpy()],
                                   dtype=np.float32))
   return q
 
 
 def rotate_vec_by_q(t, q):
-  """
-  rotates vector t by quaternion q
-  :param t: vector, Tensor N x 3
-  :param q: quaternion, Tensor N x 4
-  :return: t rotated by q: t' = t + 2*qs*(qv x t) + 2*qv x (qv x r)
-  """
   qs, qv = q[:, :1], q[:, 1:]
   b  = torch.cross(qv, t, dim=1)
   c  = 2 * torch.cross(qv, b, dim=1)
@@ -135,12 +86,6 @@ def rotate_vec_by_q(t, q):
 
 
 def calc_vo_logq_safe(p0, p1):
-  """
-  VO in the p0 frame using numpy fns
-  :param p0:
-  :param p1:
-  :return:
-  """
   vos_t = p1[:, :3] - p0[:, :3]
   q0 = qexp_t_safe(p0[:, 3:])
   q1 = qexp_t_safe(p1[:, 3:])
@@ -151,11 +96,6 @@ def calc_vo_logq_safe(p0, p1):
 
 
 def calc_vos_safe_fc(poses):
-    """
-  calculate the VOs, from a list of consecutive poses (fully connected)
-  :param poses: N x T x 7
-  :return: N x TC2 x 7
-  """
     vos = []
     for p in poses:
         pvos = []
@@ -168,11 +108,6 @@ def calc_vos_safe_fc(poses):
 
 
 def qlog(q):
-    """
-    Applies logarithm map to q
-    :param q: (4,)
-    :return: (3,)
-    """
     if all(q[1:] == 0):
         q = np.zeros(3)
     else:
@@ -182,11 +117,6 @@ def qlog(q):
 
 
 def qexp(q):
-    """
-    Applies the exponential map to q
-    :param q: (3,)
-    :return: (4,)
-    """
     n = np.linalg.norm(q)
     q = np.hstack((np.cos(n), np.sinc(n / np.pi) * q))
 
@@ -194,11 +124,6 @@ def qexp(q):
 
 
 def qexp_t(q):
-    """
-    Applies exponential map to log quaternion
-    :param q: N x 3
-    :return: N x 4
-    """
     n = torch.norm(q, p=2, dim=1, keepdim=True)
     n = torch.clamp(n, min=1e-8)
     q = q * torch.sin(n)
@@ -281,14 +206,6 @@ def poses_foraugmentaion(poses_r, pose_t):
 
 
 def val_translation(pred_p, gt_p):
-    """
-    test model, compute error (numpy)
-    input:
-        pred_p: [3,]
-        gt_p: [3,]
-    returns:
-        translation error (m):
-    """
     if isinstance(pred_p, np.ndarray):
         predicted = pred_p
         groundtruth = gt_p
@@ -301,14 +218,6 @@ def val_translation(pred_p, gt_p):
 
 
 def val_rotation(pred_q, gt_q):
-    """
-    test model, compute error (numpy)
-    input:
-        pred_q: [4,]
-        gt_q: [4,]
-    returns:
-        rotation error (degrees):
-    """
     if isinstance(pred_q, np.ndarray):
         predicted = pred_q
         groundtruth = gt_q
@@ -346,14 +255,6 @@ def poses2mats(poses_in):
 
 
 def transform(pts, trans):
-    """
-    Applies the SE3 transformations, support torch.Tensor and np.ndarry.  Equation: trans_pts = R @ pts + t
-    Input
-        - pts: [num_pts, 3] or [bs, num_pts, 3], pts to be transformed
-        - trans: [4, 4] or [bs, 4, 4], SE3 transformation matrix
-    Output
-        - pts: [num_pts, 3] or [bs, num_pts, 3] transformed pts
-    """
     if len(pts.shape) == 3:
         trans_pts = trans[:, :3, :3] @ pts.permute(0,2,1) + trans[:, :3, 3:4]
         return trans_pts.permute(0,2,1)
@@ -363,11 +264,6 @@ def transform(pts, trans):
 
 
 def calc_vos_simple(poses):
-    """
-    calculate the VOs, from a list of consecutive poses
-    :param poses: N x T x 7
-    :return: N x (T-1) x 7
-    """
     vos = []
     for p in poses:
         pvos = [p[i + 1].unsqueeze(0) - p[i].unsqueeze(0) for i in range(len(p) - 1)]
@@ -397,9 +293,7 @@ def filter_overflow_ts(filename, ts_raw):
     return ts_filted
 
 
-def filter_overflow_nclt(gt_filename, ts_raw):  # 滤波函数
-    # gt_filename: GT对应的文件名
-    # ts_raw: 原始数据集提供的点云时间戳
+def filter_overflow_nclt(gt_filename, ts_raw):
     ground_truth = np.loadtxt(gt_filename, delimiter=",")[1:, 0]
     min_pose_timestamps = min(ground_truth)
     max_pose_timestamps = max(ground_truth)
@@ -410,9 +304,7 @@ def filter_overflow_nclt(gt_filename, ts_raw):  # 滤波函数
     return ts_filted
 
 
-def interpolate_pose_nclt(gt_filename, ts_raw):  # 插值函数
-    # gt_filename: GT对应文件名
-    # ts_raw: 滤波后的点云时间戳
+def interpolate_pose_nclt(gt_filename, ts_raw):
     ground_truth = np.loadtxt(gt_filename, delimiter=",")
     ground_truth = ground_truth[np.logical_not(np.any(np.isnan(ground_truth), 1))]
     interp = scipy.interpolate.interp1d(ground_truth[:, 0], ground_truth[:, 1:], kind='nearest', axis=0)
@@ -431,9 +323,7 @@ def so3_to_euler_nclt(poses_in):
     return poses_out
 
 
-def convert_nclt(x_s, y_s, z_s):  # 输入点云转换函数
-    # 文档种提供的转换函数
-    # 原文档返回为x, y, z，但在绘制可视化图时z取负，此处先取负
+def convert_nclt(x_s, y_s, z_s):
     scaling = 0.005  # 5 mm
     offset = -100.0
 
@@ -444,7 +334,7 @@ def convert_nclt(x_s, y_s, z_s):  # 输入点云转换函数
     return x, y, -z
 
 
-def load_velodyne_binary_nclt(filename):  # 读入二进制点云
+def load_velodyne_binary_nclt(filename):
     f_bin = open(filename, "rb")
     hits = []
     while True:

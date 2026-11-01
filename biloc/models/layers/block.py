@@ -117,9 +117,6 @@ def drop_add_residual_stochastic_depth(
 
 class NestedTensorBlock(Block):
     def forward_nested(self, x_list: List[Tensor]) -> List[Tensor]:
-        """
-        Nested tensor inputs are not supported in this configuration.
-        """
         raise NotImplementedError("Nested tensor inputs are not supported.")
 
     def forward(self, x_or_x_list):

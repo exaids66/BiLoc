@@ -21,19 +21,8 @@ class LearnableBias(nn.Module):
         return out
 
 class ElasticQuantBinarizerSigned(torch.autograd.Function):
-    """
-        Modified from Learned Step-size Quantization.
-        https://arxiv.org/abs/1902.08153
-    """
     @staticmethod
     def forward(ctx, input, alpha, num_bits, layerwise):
-        """
-        :param input: input to be quantized
-        :param alpha: the step size
-        :param num_bits: quantization bits
-        :param layerwise: rowwise quant
-        :return: quantized output
-        """
         if not layerwise:
             # TODO
             raise NotImplementedError
@@ -85,19 +74,8 @@ class ElasticQuantBinarizerSigned(torch.autograd.Function):
 
 
 class ElasticQuantBinarizerUnsigned(torch.autograd.Function):
-    """
-        Modified from Learned Step-size Quantization.
-        https://arxiv.org/abs/1902.08153
-    """
     @staticmethod
     def forward(ctx, input, alpha, num_bits, layerwise):
-        """
-        :param input: input to be quantized
-        :param alpha: the step size
-        :param num_bits: quantization bits
-        :param layerwise: rowwise quant
-        :return: quantized output
-        """
         if not layerwise:
             # TODO
             raise NotImplementedError
@@ -172,16 +150,9 @@ class AlphaInit(nn.Parameter):
 
 
 class BwnQuantizer(torch.autograd.Function):
-    """Binary Weight Network (BWN)
-     Ref: https://arxiv.org/abs/1603.05279
-     """
 
     @staticmethod
     def forward(ctx, input, clip_val, num_bits, layerwise):
-        """
-        :param input: tensor to be binarized
-        :return: quantized tensor
-        """
         ctx.save_for_backward(input)
         if layerwise:
             s = input.size()
@@ -199,11 +170,6 @@ class BwnQuantizer(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        """
-        :param ctx: saved non-clipped full-precision tensor and clip_val
-        :param grad_output: gradient ert the quantized tensor
-        :return: estimated gradient wrt the full-precision tensor
-        """
         grad_input = grad_output.clone()
         return grad_input, None, None, None
 
@@ -370,34 +336,17 @@ class BNNLinear(nn.Linear):
         return output
 
 class BinaryActivation(nn.Module):
-    """
-    二值激活函数：
-    - 前向：sign(x) ∈ {-1, +1}
-    - 反向：使用分段二次多项式作为平滑近似，提供更平滑的梯度
-    区间：
-        x < -1        → -1
-        -1 <= x < 0   → x^2 + 2x
-        0  <= x < 1   → -x^2 + 2x
-        x >= 1        → 1
-    """
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # 前向二值输出：sign
         out_forward = torch.sign(x)
 
-        # 三个区间 mask
         mask1 = (x < -1).to(x.dtype)  # x < -1
         mask2 = (x <  0).to(x.dtype)  # x < 0
         mask3 = (x <  1).to(x.dtype)  # x < 1
 
-        # 分段多项式构造平滑函数 out3
-        # 第一段：x < -1 → -1，其余用 x^2 + 2x
         out1 = (-1.0) * mask1 + (x * x + 2.0 * x) * (1.0 - mask1)
 
-        # 第二段：x < 0 → 保持 out1，其余改为 -x^2 + 2x
         out2 = out1 * mask2 + (-x * x + 2.0 * x) * (1.0 - mask2)
 
-        # 第三段：x < 1 → 保持 out2，其余固定为 1
         out3 = out2 * mask3 + 1.0 * (1.0 - mask3)
 
-        # STE：前向数值等于 sign(x)，梯度来自 out3
         return out_forward.detach() - out3.detach() + out3

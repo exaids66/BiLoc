@@ -1,8 +1,3 @@
-"""
-@author: Wen Li
-@file: eavl.py
-@time: 2023/9/23 18:20
-"""
 import time
 import matplotlib
 import os.path as osp

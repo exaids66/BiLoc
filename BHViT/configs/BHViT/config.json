@@ -1,0 +1,40 @@
+{
+  "architectures": [
+    "ViTForImageClassification"
+  ],
+  "attention_probs_dropout_prob": 0.0,
+  "drop_path": 0.1,
+  "encoder_stride": 16,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.0,
+  "image_size": [
+    32,
+    512
+  ],
+  "initializer_range": 0.02,
+  "layer_norm_eps": 1e-05,
+  "model_type": "vit",
+  "hidden_size": [64, 128, 256, 512],
+  "depths": [3, 4, 8, 4],
+  "num_attention_heads": [1, 1, 4, 8],
+  "num_hidden_layersA": 7,
+  "num_hidden_layersB": 12,
+  "intermediate_size": [512, 1024, 1024, 2048],
+  "num_channels": 5,
+  "patch_size": [4,16],
+  "qkv_bias": true,
+  "transformers_version": "4.20.1",
+  "token_num": [3136, 784, 196, 49],
+  "num_hidden_layers": "sum(config.depths)",
+  "stages": [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3],
+  "shift3": false,
+  "shift5": false,
+  "norm_layer": "LayerNorm",
+  "disable_layerscale": false,
+  "enable_cls_token": false,
+  "gsb": true,
+  "recu": false,
+  "weight_bits": 1,
+  "input_bits": 1,
+  "some_fp": true
+}

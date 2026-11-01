@@ -6,9 +6,6 @@ from datasets.robotcar_sdk.python.transform import euler_to_so3
 
 
 class AugmentParams(object):
-    '''
-    Adapted from Z. Zhuang et al. https://github.com/ICEORY/PMF
-    '''
 
     def __init__(self, p_flipx=0., p_flipy=0.,
                  p_transx=0., trans_xmin=0., trans_xmax=0.,
@@ -134,7 +131,6 @@ class Augmentor(object):
     def rotation(pointcloud: np.ndarray, roll: float, pitch: float, yaw: float, degrees=True):
         # rot_matrix = R.from_euler(
         #     'zyx', [yaw, pitch, roll], degrees=degrees).as_matrix()
-        # 需要先转换为弧度制
         roll = math.radians(roll)
         pitch = math.radians(pitch)
         yaw = math.radians(yaw)
@@ -169,7 +165,6 @@ class Augmentor(object):
         if rand < self.parmas.p_scale:
             pointcloud = self.scale_cloud(pointcloud, self.parmas.scale_min, self.parmas.scale_max)
 
-        # translation 对每个点单独变换，可不改变pose值
         rand = random.uniform(0, 1)
         if rand < self.parmas.p_transx:
             trans_x = random.uniform(
@@ -190,7 +185,6 @@ class Augmentor(object):
             trans_z = 0
         pointcloud = self.translation(pointcloud, trans_x, trans_y, trans_z)
 
-        # rotation  对点云整体变换，需要改变pose值
         rand = random.uniform(0, 1)
 
         if rand < self.parmas.p_rot_roll:

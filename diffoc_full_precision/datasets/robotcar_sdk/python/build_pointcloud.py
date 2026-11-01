@@ -22,25 +22,6 @@ from velodyne import load_velodyne_raw, load_velodyne_binary, velodyne_raw_to_po
 
 
 def build_pointcloud(lidar_dir, poses_file, extrinsics_dir, start_time, end_time, origin_time=-1):
-    """Builds a pointcloud by combining multiple LIDAR scans with odometry information.
-
-    Args:
-        lidar_dir (str): Directory containing LIDAR scans.
-        poses_file (str): Path to a file containing pose information. Can be VO or INS data.
-        extrinsics_dir (str): Directory containing extrinsic calibrations.
-        start_time (int): UNIX timestamp of the start of the window over which to build the pointcloud.
-        end_time (int): UNIX timestamp of the end of the window over which to build the pointcloud.
-        origin_time (int): UNIX timestamp of origin frame. Pointcloud coordinates are relative to this frame.
-
-    Returns:
-        numpy.ndarray: 3xn array of (x, y, z) coordinates of pointcloud
-        numpy.array: array of n reflectance values or None if no reflectance values are recorded (LDMRS)
-
-    Raises:
-        ValueError: if specified window doesn't contain any laser scans.
-        IOError: if scan files are not found.
-
-    """
     if origin_time < 0:
         origin_time = start_time
 

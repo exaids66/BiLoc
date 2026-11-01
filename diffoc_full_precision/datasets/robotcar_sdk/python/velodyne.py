@@ -30,16 +30,6 @@ hdl32e_sin_elevations = np.sin(hdl32e_elevations)
 
 
 def load_velodyne_binary(velodyne_bin_path: AnyStr):
-    """Decode a binary Velodyne example (of the form '<timestamp>.bin')
-    Args:
-        example_path (AnyStr): Oxford Radar RobotCar Dataset binary Velodyne pointcloud example path
-    Returns:
-        ptcld (np.ndarray): XYZI pointcloud from the binary Velodyne data Nx4
-    Notes:
-        - The pre computed points are *NOT* motion compensated.
-        - Converting a raw velodyne scan to pointcloud can be done using the
-            `velodyne_ranges_intensities_angles_to_pointcloud` function.
-    """
     ext = os.path.splitext(velodyne_bin_path)[1]
     if ext != ".bin":
         raise RuntimeError("Velodyne binary pointcloud file should have `.bin` extension but had: {}".format(ext))
@@ -50,16 +40,6 @@ def load_velodyne_binary(velodyne_bin_path: AnyStr):
     return ptcld
 
 def load_velodyne_binary_seg(velodyne_bin_path: AnyStr):
-    """Decode a binary Velodyne example (of the form '<timestamp>.bin')
-    Args:
-        example_path (AnyStr): Oxford Radar RobotCar Dataset binary Velodyne pointcloud example path
-    Returns:
-        ptcld (np.ndarray): XYZI pointcloud from the binary Velodyne data Nx4
-    Notes:
-        - The pre computed points are *NOT* motion compensated.
-        - Converting a raw velodyne scan to pointcloud can be done using the
-            `velodyne_ranges_intensities_angles_to_pointcloud` function.
-    """
     ext = os.path.splitext(velodyne_bin_path)[1]
     if ext != ".bin":
         raise RuntimeError("Velodyne binary pointcloud file should have `.bin` extension but had: {}".format(ext))
@@ -71,19 +51,6 @@ def load_velodyne_binary_seg(velodyne_bin_path: AnyStr):
 
 
 def velodyne_raw_to_pointcloud(ranges: np.ndarray, intensities: np.ndarray, angles: np.ndarray):
-    """ Convert raw Velodyne data (from load_velodyne_raw) into a pointcloud
-    Args:
-        ranges (np.ndarray): Raw Velodyne range readings
-        intensities (np.ndarray): Raw Velodyne intensity readings
-        angles (np.ndarray): Raw Velodyne angles
-    Returns:
-        pointcloud (np.ndarray): XYZI pointcloud generated from the raw Velodyne data Nx4
-
-    Notes:
-        - This implementation does *NOT* perform motion compensation on the generated pointcloud.
-        - Accessing the pointclouds in binary form via `load_velodyne_pointcloud` is approximately 2x faster at the cost
-            of 8x the storage space
-    """
     valid = ranges > hdl32e_minimum_range
     z = hdl32e_sin_elevations * ranges - hdl32e_base_to_fire_height
     xy = hdl32e_cos_elevations * ranges

@@ -12,8 +12,8 @@ training with a full-precision DiffLoc teacher.
   trajectory plots, and prediction/error text files to `cfg.exp_dir`.
 - `cfgs/oxford.yaml`: Oxford configuration and default released student
   checkpoint path.
-- `cfgs/nclt.yaml`: NCLT configuration. NCLT checkpoints are not released by
-  default; provide your own paths before evaluation.
+- `cfgs/nclt.yaml`: NCLT configuration and default released student
+  checkpoint path.
 - `models/`: DiffusionLoc model, BHViT feature extractor wrapper, binarized
   denoiser, Gaussian diffusion, and quantization layers.
 - `loss/`: feature KD and structure KD losses used by BiLoc.
@@ -111,9 +111,12 @@ The release configs use relative placeholder paths such as:
 ../checkpoints/your_diffloc_teacher_oxford.pth
 ```
 
-Only the Oxford BiLoc student checkpoint is planned for the public release.
-Teacher checkpoints and NCLT checkpoints are not released; their checkpoint
-fields use `your_*` placeholders.
+The BiLoc student checkpoints for Oxford (`biloc_oxford.pth`) and NCLT
+(`biloc_nclt.pth`) are released on
+[Google Drive](https://drive.google.com/drive/folders/1b-y6CfrnNoCXBgs6ZVrxTFipNvk1uTQo?usp=sharing);
+see the Model Zoo section of the top-level README for SHA-256 checksums and the
+expected `../checkpoints/` layout. Teacher checkpoints are not released; their
+checkpoint fields use `your_*` placeholders.
 
 Before launching new experiments, verify these fields:
 

@@ -1,8 +1,3 @@
-"""Visualization code for point clouds and 3D bounding boxes with mayavi.
-
-Modified by Charles R. Qi
-Date: September 2017
-"""
 
 import argparse
 import os
@@ -74,7 +69,6 @@ def process_point_cloud(input_point_cloud, input_labels=None, voxel_size=0.15):
 
 def create_label_map(num_classes=3):
     name_label_mapping = {
-    # 不需要的类
     'unlabeled': 0,
     'outlier': 1,
     'other-ground': 49,
@@ -129,7 +123,6 @@ cmap = cmap[:, [2, 1, 0, 3]]  # convert bgra to rgba
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # 数据集位置
     parser.add_argument('--velodyne-dir', type=str, default='Oxford')
     parser.add_argument('--model',
                         type=str,
@@ -202,7 +195,6 @@ if __name__ == '__main__':
             plane_list = []
             ground_list = []
             other_list = []
-            # 对于提供好参数的模型执行下列操作
             for i in range(results.shape[0]):
                 if results[i, 4] == 12:
                     plane_list.append(results[i, :4])

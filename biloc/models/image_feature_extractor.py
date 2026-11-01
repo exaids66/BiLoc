@@ -218,9 +218,6 @@ def create_rangevit(model_cfg):
 
 
 class BHViTRangeEncoder(nn.Module):
-    """
-    Wrap BHViTForImageClassification to provide the token/skip interface expected by RangeViT.
-    """
     def __init__(
         self,
         config: ViTConfig,
@@ -264,28 +261,19 @@ class RangeViT(nn.Module):
         super().__init__()
         self.n_cls = n_cls
 
-        # patch 的大小和 stride（通常来自 ViT 或 Conv stem）
         self.patch_size = encoder.patch_size
         self.patch_stride = encoder.patch_stride
 
         # backbone + decoder
         self.encoder = encoder
         self.decoder = decoder
-        # self.pool = GeMPooling()  # 原始代码中可能用于最后特征池化，此处未启用
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        """
-        获取 encoder 和 decoder 中声明的 no_weight_decay 参数列表。
-        作用：告诉 Optimizer 某些参数（例如 LayerNorm、pos_embedding）
-             不需要 weight decay。
-        """
 
         def append_prefix_no_weight_decay(prefix, module):
-            # module.no_weight_decay() 返回参数名集合，这里给每个参数名前面加 prefix
             return set(map(lambda x: prefix + x, module.no_weight_decay()))
 
-        # 合并 encoder 和 decoder 的 no_weight_decay 参数
         nwd_params = append_prefix_no_weight_decay('encoder.', self.encoder).union(
              append_prefix_no_weight_decay('decoder.', self.decoder)
         )
@@ -293,56 +281,31 @@ class RangeViT(nn.Module):
 
 
     def forward(self, im):
-        """
-        输入:
-            im: [B*N, C=32, H=720, W=5]  —— Range Image 格式（例子）
-        输出:
-            x:    [B*N, d]        —— 全局特征，用于后续定位/匹配
-            feats [B*N, C, H, W]  —— 上采样后的 dense feature map
-        """
 
-        # 原图尺寸（去 padding 用）
         H_ori, W_ori = im.size(2), im.size(3)
 
-        # 1. 根据 patch_size 做 padding（通常要 pad 成 patch 整除）
         im = padding(im, self.patch_size)
         H, W = im.size(2), im.size(3)
 
-        # 2. backbone 前向
-        #    return_features=True 表示同时返回 skip（多尺度特征，用于 decoder）
         x, skip = self.encoder(im, return_features=True)
 
         # x shape: [B, 1 + HW/P^2, d]
-        # skip: encoder 中间层输出，多用于 decoder 做 feature fusion
 
-        # 3. 移除 CLS token，因为 decoder 不需要 CLS（只要 patch token）
-        num_extra_tokens = getattr(self.encoder, "num_extra_tokens", 1)  # 一般是 1 个 CLS token
-        # x的尺寸：54,256,384
-        x = x[:, num_extra_tokens:]   # x -> 只剩下所有 patch token
+        num_extra_tokens = getattr(self.encoder, "num_extra_tokens", 1)
+        x = x[:, num_extra_tokens:]
 
-        # # 4. decoder 解码 —— 输出 pred mask: 54,256,1 和 dense features: 54,1,8,32
         # pred_mask, feats = self.decoder(x, (H, W), skip)
-        # # pred_mask: [B, N_patch, 1] 或 reshape 后 [B, H', W']
-        # # feats: decoder 输出的 dense 特征图
         #
-        # # 5. mask 用 sigmoid 做归一化,形状不变
         # pred_mask = torch.sigmoid(pred_mask)
         #
-        # # 6. 将 decoder 输出的 dense features 上采样回 padding 后的尺寸：54，1，32，512
         # feats = F.interpolate(feats, size=(H, W), mode='bilinear')
         #
-        # # 7. 去掉 padding —— 恢复原图 H_ori × W_ori 的 dense 特征图：54，1，32，512
         # feats = unpadding(feats, (H_ori, W_ori))
         #
-        # # 8. 对 patch token 做 mask 选择性加权 —— 代码有问题，这里加权的是全局特征
-        # #    x 的 shape 为 [B, N_patch, d] 56，256，384
-        # #    pred_mask broadcast 成同维度后：x + x * pred_mask = x*(1 + mask)
-        # #    即使 mask 更强的区域贡献更大
-        x = (x + x).mean(1)  # 对所有 patch 求平均，得到全局 embedding
+        x = (x + x).mean(1)
 
-        # return x, feats # x尺寸：54,384   //   feats尺寸：54,1,32,512  //为什么B是54——batchsize=18, 训练时timestepx3
 
-        return x # x尺寸：54,384   //   feats尺寸：54,1,32,512  //为什么B是54——batchsize=18, 训练时timestepx3
+        return x
 
 
 

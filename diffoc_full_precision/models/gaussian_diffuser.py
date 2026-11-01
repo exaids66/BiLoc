@@ -46,10 +46,6 @@ def linear_beta_schedule(timesteps):
 
 
 def cosine_beta_schedule(timesteps, s=0.008):
-    """
-    cosine schedule
-    as proposed in https://openreview.net/forum?id=-NEXDKk8gZ
-    """
     steps = timesteps + 1
     x = torch.linspace(0, timesteps, steps, dtype=torch.float64)
     alphas_cumprod = (
@@ -199,7 +195,6 @@ class GaussianDiffusion(nn.Module):
             ** -p2_loss_weight_gamma,
         )
 
-        # 定义损失函数
         if self.loss_type == 'l1':
             self.loss_fn = nn.L1Loss()
         elif self.loss_type == 'AtLoc':
@@ -244,48 +239,27 @@ class GaussianDiffusion(nn.Module):
         )
 
     def model_predictions(self, x, t, z, x_self_cond=None):
-        # 调用 denoiser 模型（例如 UNet / Transformer）
-        # 输入：
-        #   x : 当前扩散步骤 t 的噪声状态 x_t
-        #   t : 当前时间步（diffusion step）
-        #   z : 条件特征（本任务中为图像特征）
-        # 返回：
-        #   model_output 的含义根据 self.objective 决定：
-        #       - 如果 objective = pred_noise:  model_output = 预测噪声 ε_θ(x_t, t, z)
-        #       - 如果 objective = pred_x0:     model_output = 预测原始干净数据 x_0 预测值
         model_output = self.model(x, t, z)
 
         # print(self.objective)
 
         # =========================================================
-        # 目标 1：模型预测的是噪声（pred_noise）
-        # 常用于 DDPM 原论文（Ho et al. 2020）
         # =========================================================
         if self.objective == "pred_noise":
-            pred_noise = model_output  # 直接视为预测噪声 ε_t
+            pred_noise = model_output
 
-            # 根据公式：
             #   x_0 = (x_t - sqrt(1 - ᾱ_t) * ε) / sqrt(ᾱ_t)
-            # 推出 x_0（反推原始干净样本）
             x_start = self.predict_start_from_noise(x, t, model_output)
 
 
         # =========================================================
-        # 目标 2：模型直接预测 x_0（pred_x0）
-        # 用于 DDIM 或稳定扩散（Stable Diffusion）较常用
         # =========================================================
         elif self.objective == "pred_x0":
-            # 根据预测出的 x_0，反推预测噪声 ε
-            # 根据 DDPM 公式：
             #   ε = (x_t - sqrt(ᾱ_t) * x_0) / sqrt(1 - ᾱ_t)
             pred_noise = self.predict_noise_from_start(x, t, model_output)
 
-            # 直接把 model_output 视为 x_0 预测
             x_start = model_output
 
-        # 返回一个结构体，包含：
-        #   pred_noise：预测噪声 ε_t
-        #   x_start：预测的 x_0（原始干净 pose）
         return ModelPrediction(pred_noise, x_start)
 
     def p_mean_variance(

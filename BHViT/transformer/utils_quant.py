@@ -44,18 +44,8 @@ class BiTBinaryQuantizer(torch.autograd.Function):
 
 
 class SymQuantizer(torch.autograd.Function):
-    """
-        uniform quantization
-    """
     @staticmethod
     def forward(ctx, input, clip_val, num_bits, layerwise, type=None):
-        """
-        :param ctx:
-        :param input: tensor to be quantized
-        :param clip_val: clip the tensor before quantization
-        :param quant_bits: number of bits
-        :return: quantized tensor
-        """
         ctx.save_for_backward(input, clip_val)
         input = torch.where(input < clip_val[1], input, clip_val[1])
         input = torch.where(input > clip_val[0], input, clip_val[0])
@@ -76,11 +66,6 @@ class SymQuantizer(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        """
-        :param ctx: saved non-clipped full-precision tensor and clip_val
-        :param grad_output: gradient ert the quantized tensor
-        :return: estimated gradient wrt the full-precision tensor
-        """
         input, clip_val = ctx.saved_tensors  # unclipped input
         grad_input = grad_output.clone()
         grad_input[input.ge(clip_val[1])] = 0
@@ -89,18 +74,8 @@ class SymQuantizer(torch.autograd.Function):
 
 
 class AsymQuantizer(torch.autograd.Function):
-    """
-        min-max quantization
-    """
     @staticmethod
     def forward(ctx, input, clip_val, num_bits, layerwise, type=None):
-        """
-        :param ctx:
-        :param input: tensor to be quantized
-        :param clip_val: clip the tensor before quantization
-        :param quant_bits: number of bits
-        :return: quantized tensor
-        """
         ctx.save_for_backward(input, clip_val)
         input = torch.where(input < clip_val[1], input, clip_val[1])
         input = torch.where(input > clip_val[0], input, clip_val[0])
@@ -127,11 +102,6 @@ class AsymQuantizer(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        """
-        :param ctx: saved non-clipped full-precision tensor and clip_val
-        :param grad_output: gradient ert the quantized tensor
-        :return: estimated gradient wrt the full-precision tensor
-        """
         input, clip_val = ctx.saved_tensors  # unclipped input
         grad_input = grad_output.clone()
         grad_input[input.ge(clip_val[1])] = 0
@@ -140,15 +110,8 @@ class AsymQuantizer(torch.autograd.Function):
 
 
 class TwnQuantizer(torch.autograd.Function):
-    """Ternary Weight Networks (TWN)
-    Ref: https://arxiv.org/abs/1605.04711
-    """
     @staticmethod
     def forward(ctx, input, clip_val, num_bits, layerwise, type=None):
-        """
-        :param input: tensor to be ternarized
-        :return: quantized tensor
-        """
         ctx.save_for_backward(input, clip_val)
         input = torch.where(input < clip_val[1], input, clip_val[1])
         input = torch.where(input > clip_val[0], input, clip_val[0])
@@ -174,11 +137,6 @@ class TwnQuantizer(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        """
-        :param ctx: saved non-clipped full-precision tensor and clip_val
-        :param grad_output: gradient ert the quantized tensor
-        :return: estimated gradient wrt the full-precision tensor
-        """
         input, clip_val = ctx.saved_tensors  # unclipped input
         grad_input = grad_output.clone()
         grad_input[input.ge(clip_val[1])] = 0
@@ -402,19 +360,8 @@ class QuantizeEmbedding(nn.Embedding):
             self.norm_type, self.scale_grad_by_freq, self.sparse)
         return out
 class ElasticQuantAttention(torch.autograd.Function):
-    """
-        Modified from Learned Step-size Quantization.
-        https://arxiv.org/abs/1902.08153
-    """
     @staticmethod
     def forward(ctx, input,alpha,alpha2,alpha3, num_bits):
-        """
-        :param input: input to be quantized
-        :param alpha: the step size
-        :param num_bits: quantization bits
-        :param layerwise: rowwise quant
-        :return: quantized output
-        """
         ctx.num_bits = num_bits
         if num_bits == 32:
             return input
@@ -456,19 +403,8 @@ class ElasticQuantAttention(torch.autograd.Function):
         
         return grad_input,grad_alpha, grad_alpha2,grad_alpha3, None  
 class GSB_Attention(torch.autograd.Function):
-    """
-        Modified from Learned Step-size Quantization.
-        https://arxiv.org/abs/1902.08153
-    """
     @staticmethod
     def forward(ctx, input,alpha,alpha2,alpha3, num_bits):
-        """
-        :param input: input to be quantized
-        :param alpha: the step size
-        :param num_bits: quantization bits
-        :param layerwise: rowwise quant
-        :return: quantized output
-        """
         ctx.num_bits = num_bits
         if num_bits == 32:
             return input

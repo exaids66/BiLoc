@@ -1,4 +1,3 @@
-""" PyTorch ViT model."""
 
 import collections.abc
 import math
@@ -47,9 +46,6 @@ class LayerScale(nn.Module):
 
 
 class BHViTEmbeddings(nn.Module):
-    """
-    Construct position and patch embeddings.
-    """
 
     def __init__(self, config: ViTConfig) -> None:
         super().__init__()
@@ -73,11 +69,6 @@ class BHViTEmbeddings(nn.Module):
 
 
 class BHViTPatchEmbeddings(nn.Module):
-    """
-    This class turns `pixel_values` of shape `(batch_size, num_channels, height, width)` into the initial
-    `hidden_states` (patch embeddings) of shape `(batch_size, seq_length, hidden_size)` to be consumed by a
-    Transformer.
-    """
 
     def __init__(self, config, in_chans=None, out_chans=64):
         super().__init__()
@@ -199,13 +190,13 @@ class BHViTSelfAttention(nn.Module):
     def window_reverse(self, windows, window_size, H, W, B):
         x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
         x = x.permute(0, 5, 1, 3, 2, 4).reshape(B, windows.shape[2], H,
-                                                W)  # windows.shape=【B*H // window_size*W // window_size，window_size*window_size，C】
+                                                W)
         return x
 
     def window_reverse_high(self, windows, window_size, H, W, B):
         x = windows.view(B, H // window_size * W // window_size, H // window_size, W // window_size, -1)
         x = torch.mean(x, dim=1).permute(0, 3, 1,
-                                         2)  # windows.shape=【B*H // window_size*W // window_size，H // window_size*W // window_size，C】
+                                         2)
         x = torch.nn.functional.interpolate(x, size=H, mode='nearest')
         return x
 
@@ -276,10 +267,6 @@ class BHViTSelfAttention(nn.Module):
 
 
 class BHViTSelfOutput(nn.Module):
-    """
-    The residual connection is defined in ViTLayer instead of here (as is the case with other models), due to the
-    layernorm applied before each block.
-    """
 
     def __init__(self, config: ViTConfig, layer_num) -> None:
         super().__init__()
@@ -484,7 +471,6 @@ class token_mixer(nn.Module):
 
 
 class GCLayer(nn.Module):
-    """This corresponds to the Block class in the timm implementation."""
 
     def __init__(self, config, layer_num, drop_path=0.0) -> None:
         super().__init__()
@@ -569,7 +555,6 @@ class GCLayer(nn.Module):
 
 
 class BHViTLayer(nn.Module):
-    """This corresponds to the Block class in the timm implementation."""
 
     def __init__(self, config, layer_num, drop_path=0.0) -> None:
         super().__init__()
@@ -674,8 +659,6 @@ class BHViTLayer(nn.Module):
 
 
 class BinaryPatchEmbed(nn.Module):
-    """ Image to Patch Embedding
-    """
 
     def __init__(self, img_size=224, patch_size=2, in_dim=3, out_dim=64, config=None):
         super().__init__()
@@ -778,8 +761,6 @@ class BinaryPatchEmbed(nn.Module):
 
 
 class PatchEmbed(nn.Module):
-    """ Image to Patch Embedding
-    """
 
     def __init__(self, img_size=224, patch_size=2, in_dim=3, out_dim=64, config=None):
         super().__init__()
@@ -975,7 +956,6 @@ class BHViTForImageClassification(nn.Module):
 
     @torch.no_grad()
     def init_weights(module: nn.Module, name: str = ''):
-        """ ViT weight initialization, original timm impl (for reproducibility) """
         if isinstance(module, nn.Linear):
             trunc_normal_(module.weight, std=.02)
             if module.bias is not None:

@@ -18,20 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class Denoiser(nn.Module):
-    """
-    扩散模型中的去噪器，使用二值化 Transformer 作为主干。
-    组成：
-        - 时间步嵌入：TimeStepEmbedding，将标量 t 映射到高维
-        - 位姿嵌入：PoseEmbedding，将 6DoF 位姿编码
-        - 视觉特征 z：来自图像特征提取器
-        - Transformer 主干：BinarizedTransformerEncoder（由 Hydra 配置注入）
-        - 输出 MLP：预测目标位姿残差
-    主要输入/输出形状（B=batch, N=相机数/序列长度）：
-        x: (B, N, target_dim)    当前带噪位姿
-        t: (B,)                  对应扩散时间步
-        z: (B, N, z_dim)         图像/上下文特征
-        返回: (B, N, target_dim) 去噪后的位姿增量
-    """
     def __init__(
         self,
         TRANSFORMER: Dict,
@@ -59,7 +45,6 @@ class Denoiser(nn.Module):
 
         self._first = nn.Linear(first_dim, d_model)
 
-        # 构建二值化 Transformer 编码器（Hydra 会实例化配置里的 BinarizedTransformerEncoder）
         self._trunk = instantiate(TRANSFORMER, _recursive_=False)
 
         self._last = BinaryMLP(
@@ -68,24 +53,21 @@ class Denoiser(nn.Module):
 
     def forward(
         self,
-        x: torch.Tensor,  # B x N x dim //18，3，6
+        x: torch.Tensor,
         t: torch.Tensor,  # B //18
         z: torch.Tensor,  # B x N x dim_z //18.3.384
     ):
         B, N, _ = x.shape
 
-        # 时间与位姿嵌入
         t_emb = self.time_embed(t)
-        t_emb = t_emb.view(B, 1, t_emb.shape[-1]).expand(-1, N, -1)  # 广播到每个相机/节点
+        t_emb = t_emb.view(B, 1, t_emb.shape[-1]).expand(-1, N, -1)
         x_emb = self.pose_embed(x)
 
         if self.pivot_cam_onehot:
-            # 为第一个相机追加 one-hot 作为 pivot 标识
             cam_pivot_id = torch.zeros_like(z[..., :1])
             cam_pivot_id[:, 0, ...] = 1.0
             z = torch.cat([z, cam_pivot_id], dim=-1)
 
-        # 拼接特征：位姿嵌入 + 时间嵌入 + 图像特征 (+ pivot one-hot)
         feed_feats = torch.cat([x_emb, t_emb, z], dim=-1)
 
         input_ = self._first(feed_feats)
@@ -94,11 +76,10 @@ class Denoiser(nn.Module):
 
         output = self._last(feats_)
 
-        return output # 18，3，6
+        return output
 
 
 class BinarizedMultiheadSelfAttention(nn.Module):
-    """Multi-head self-attention with elastic binarization on weights and activations."""
 
     def __init__(
         self,
@@ -180,7 +161,6 @@ class BinarizedMultiheadSelfAttention(nn.Module):
 
 
 class BinarizedTransformerEncoderLayer(nn.Module):
-    """Transformer encoder layer using BiT-style two-set binarization."""
 
     def __init__(
         self,
@@ -273,7 +253,6 @@ class BinarizedTransformerEncoderLayer(nn.Module):
 
 
 class BinarizedTransformerEncoder(nn.Module):
-    """Stacked binarized encoder layers."""
 
     def __init__(self, encoder_layer: BinarizedTransformerEncoderLayer, num_layers: int):
         super().__init__()
@@ -351,11 +330,6 @@ class SignSTE(torch.autograd.Function):
 
 
 class XnorScale(torch.autograd.Function):
-    """
-    XNOR style weight binarization: sign(w) * mean(|w|) over input dimension.
-    For Linear weights with shape [out_features, in_features], the mean is
-    taken over dim=1 and broadcast back.
-    """
 
     @staticmethod
     def forward(ctx, w):
@@ -373,7 +347,6 @@ class XnorScale(torch.autograd.Function):
 
 
 def binary_activation(x):
-    """Clamp to [-1, 1] then apply sign with STE."""
     x = x.clamp(-1, 1)
     return SignSTE.apply(x)
 
@@ -383,7 +356,6 @@ def xnor_weight(w):
 
 
 class LearnableBias(nn.Module):
-    """Per-channel learnable bias that broadcasts over batch/seq."""
 
     def __init__(self, dim: int):
         super().__init__()
@@ -397,10 +369,6 @@ class LearnableBias(nn.Module):
 
 
 class RPReLU(nn.Module):
-    """
-    Shifted PReLU used in the binary MLP block:
-    bias -> PReLU -> bias.
-    """
 
     def __init__(self, dim: int):
         super().__init__()
@@ -422,11 +390,6 @@ class RPReLU(nn.Module):
 
 
 class BinaryLinear(nn.Module):
-    """
-    Linear layer with binary weights and activations (XNOR style).
-    Weights: sign(w) * mean(|w|) along input dim.
-    Activations: clamp to [-1, 1] then sign (STE).
-    """
 
     def __init__(self, in_features: int, out_features: int, bias: bool = False):
         super().__init__()
@@ -450,11 +413,6 @@ class BinaryLinear(nn.Module):
 
 
 def _match_channels(x, target_dim: int):
-    """
-    Lightweight channel matching used for the residual helper.
-    If target_dim is a multiple of input dim, repeat; if input is a multiple
-    of target, average groups; otherwise use adaptive average pooling.
-    """
     in_dim = x.size(-1)
     if target_dim == in_dim:
         return x
@@ -475,18 +433,6 @@ def _match_channels(x, target_dim: int):
 
 
 class BinaryMLP(nn.Module):
-    """
-    Two-layer MLP using binary weights/activations.
-    Includes per-branch learnable biases, RPReLU activations, and a lightweight
-    shortcut that reuses the input features to enrich binary capacity.
-
-    Args:
-        in_features: input channel dimension
-        hidden_features: hidden dimension (default 4x input)
-        out_features: output dimension (default = in_features)
-        drop: dropout probability
-        use_shortcut: whether to add input-derived shortcut at each stage
-    """
 
     def __init__(
         self,

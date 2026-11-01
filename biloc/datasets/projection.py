@@ -2,11 +2,6 @@ import numpy as np
 
 
 class RangeProjection(object):
-    '''
-    Project the 3D point cloud to 2D data with range projection
-
-    Adapted from Z. Zhuang et al. https://github.com/ICEORY/PMF
-    '''
 
     def __init__(self, fov_up, fov_down, proj_w, proj_h, fov_left=-180, fov_right=180):
 
@@ -95,11 +90,6 @@ class RangeProjection(object):
 
 
 class ScanProjection(object):
-    '''
-    Project the 3D point cloud to 2D data with range projection
-
-    Adapted from A. Milioto et al. https://github.com/PRBonn/lidar-bonnetal
-    '''
 
     def __init__(self, proj_w, proj_h):
         # params of proj img size

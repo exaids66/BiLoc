@@ -135,7 +135,6 @@ class GeMPooling(nn.Module):
     def forward(self, x):
         # This implicitly applies ReLU on x (clamps negative values)
         temp = x.clamp(min=self.eps).pow(self.p)
-        # 全局平均池化
         temp = temp.mean(1)
 
         return temp.pow(1. / self.p)

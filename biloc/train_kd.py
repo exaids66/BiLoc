@@ -32,12 +32,7 @@ from datasets.composition import MF
 from tqdm import tqdm
 
 
-# 该脚本用于 1-bit 学生模型的蒸馏训练：
-# - 学生模型来自当前 1-bit 项目
-# - 教师模型来自 full precision 项目
-# - 支持多种特征蒸馏损失与重要性权重策略（含离线 sigma-map）
 
-# 将 checkpoint 的 key 加上 module. 前缀，兼容 DataParallel/Distributed 保存格式
 def prefix_with_module(checkpoint):
     prefixed_checkpoint = OrderedDict()
     for key, value in checkpoint.items():
@@ -47,7 +42,6 @@ def prefix_with_module(checkpoint):
 
 
 def _load_full_precision_models(fp_root):
-    # 动态加载 full precision 项目的 models 模块，避免与当前项目 models 冲突
     module_name = "fp_models"
     if module_name in sys.modules:
         return sys.modules[module_name]
@@ -63,7 +57,6 @@ def _load_full_precision_models(fp_root):
 
 
 def _replace_model_targets(cfg_node):
-    # 将教师 cfg 中的 models.* 替换为 fp_models.*，确保 instantiate 加载 full precision 实现
     if isinstance(cfg_node, (DictConfig, dict)):
         for key in list(cfg_node.keys()):
             value = cfg_node[key]
@@ -77,7 +70,6 @@ def _replace_model_targets(cfg_node):
 
 
 def _load_state_dict_flexible(model, checkpoint_path, device):
-    # 兼容不同的 state_dict key 前缀（带/不带 module.）
     checkpoint = torch.load(checkpoint_path, map_location=device)
     state_dict = checkpoint.get("state_dict", checkpoint)
     try:
@@ -101,7 +93,6 @@ def _load_state_dict_flexible(model, checkpoint_path, device):
 
 # Wrapper for cProfile.Profile for easily make optional, turn on/off and printing
 class Profiler:
-    # 可选的性能分析器：仅在开启时收集并打印统计
     def __init__(self, active: bool):
         self.c_profiler = cProfile.Profile()
         self.active = active
@@ -124,12 +115,10 @@ class Profiler:
 
 
 def get_thread_count(var_name):
-    # 读取环境变量（线程数/调度信息）
     return os.environ.get(var_name)
 
 
 def _resolve_teacher_cfg_path(cfg, project_root):
-    # 默认根据数据集名称选择教师配置，支持手动覆盖
     kd_cfg = cfg.get("KD", {})
     if "teacher_cfg" in kd_cfg:
         return kd_cfg.teacher_cfg
@@ -142,7 +131,6 @@ def _resolve_teacher_cfg_path(cfg, project_root):
 
 
 def _get_feature_dim(model):
-    # 从 image_feature_extractor 获取输出维度
     extractor = getattr(model, "image_feature_extractor", None)
     if extractor is None:
         return None
@@ -152,7 +140,6 @@ def _get_feature_dim(model):
 
 
 def train_fn(cfg: DictConfig):
-    # 主训练入口：构建数据、模型、损失与训练循环
     OmegaConf.set_struct(cfg, False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -172,7 +159,6 @@ def train_fn(cfg: DictConfig):
     print(
         f"!!!!!!!!!!!!!!!!!!!!!!!!!!  SLURM_JOB_CPUS_PER_NODE: {get_thread_count('SLURM_JOB_CPUS_PER_NODE')}")
 
-    # 数据集与 DataLoader
     train_dataset = MF(cfg.train.dataset, cfg, split='train')
     eval_dataset = MF(cfg.train.dataset, cfg, split='eval')
 
@@ -194,17 +180,10 @@ def train_fn(cfg: DictConfig):
     print("length of train dataloader is: ", len(dataloader))
     print("length of eval dataloader is: ", len(eval_dataloader))
 
-    # 项目根目录，用于定位 full precision 项目与其配置
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    # 学生模型（1-bit precision）
     model = instantiate(cfg.MODEL, _recursive_=False).to(device)
 
-    # 教师模型（full precision）
-    # 1) 读取教师配置
-    # 2) 动态加载 full precision models
-    # 3) 替换 cfg 中的 _target_ 到 fp_models
-    # 4) instantiate 并加载权重，冻结参数
     teacher_cfg_path = _resolve_teacher_cfg_path(cfg, project_root)
     if teacher_cfg_path is None:
         raise ValueError("KD.teacher_cfg is required when dataset is not Oxford/NCLT.")
@@ -220,51 +199,43 @@ def train_fn(cfg: DictConfig):
     for p in teacher_model.parameters():
         p.requires_grad = False
 
-    # 损失函数：扩散损失 + 特征蒸馏损失
     criterion = nn.BCEWithLogitsLoss()
     kd_cfg = cfg.get("KD", {})
     s_dim = kd_cfg.get("s_dim", None) or _get_feature_dim(model)
     t_dim = kd_cfg.get("t_dim", None) or _get_feature_dim(teacher_model)
     kd_loss_type = kd_cfg.get("loss_type", "entropy")
     if kd_loss_type == "weighted":
-        # 软权重加权蒸馏
         kd_loss_fn = KdWeightedMSELoss(
             threshold=kd_cfg.get("kp_threshold", 0.0),
             tau=kd_cfg.get("kp_tau", 1.0),
             use_sigmoid=kd_cfg.get("kp_use_sigmoid", True),
         ).to(device)
     elif kd_loss_type == "hard_mask":
-        # 硬阈值/Top-k mask 蒸馏
         kd_loss_fn = KdHardMaskMSELoss(
             threshold=kd_cfg.get("kp_threshold", 0.5),
             top_ratio=kd_cfg.get("mask_ratio", None),
         ).to(device)
     elif kd_loss_type == "topk":
-        # Top-k 重采样蒸馏
         kd_loss_fn = KdTopKSampleLoss(
             top_ratio=kd_cfg.get("mask_ratio", 0.3),
         ).to(device)
     elif kd_loss_type == "dual":
-        # 全局 + 重要区域双分支蒸馏
         kd_loss_fn = KdDualBranchLoss(
             alpha=kd_cfg.get("dual_alpha", 1.0),
             threshold=kd_cfg.get("kp_threshold", 0.0),
             tau=kd_cfg.get("kp_tau", 1.0),
         ).to(device)
     elif kd_loss_type == "adaptive_temp":
-        # 按重要性调节温度的蒸馏
         kd_loss_fn = KdAdaptiveTemperatureLoss(
             t_min=kd_cfg.get("t_min", 0.5),
             t_max=kd_cfg.get("t_max", 2.0),
         ).to(device)
     elif kd_loss_type == "sigma_map":
-        # 离线 sigma-map 加权蒸馏
         kd_loss_fn = KdSigmaMapWeightedLoss(
             invert=kd_cfg.get("sigma_invert", True),
             normalize=kd_cfg.get("sigma_normalize", True),
         ).to(device)
     elif kd_loss_type == "it_corr":
-        # ITLoss: correlation 版本
         if s_dim is None or t_dim is None:
             raise ValueError("ITLoss requires s_dim/t_dim. Set KD.s_dim or KD.t_dim if missing.")
         kd_loss_fn = KdITLoss(
@@ -275,7 +246,6 @@ def train_fn(cfg: DictConfig):
             mode="corr",
         ).to(device)
     elif kd_loss_type == "it_mutual":
-        # ITLoss: mutual 版本
         if s_dim is None or t_dim is None:
             raise ValueError("ITLoss requires s_dim/t_dim. Set KD.s_dim or KD.t_dim if missing.")
         kd_loss_fn = KdITLoss(
@@ -286,10 +256,8 @@ def train_fn(cfg: DictConfig):
             mode="mutual",
         ).to(device)
     else:
-        # 默认使用 entropy-loss
         kd_loss_fn = EntropyLoss().to(device)
 
-    # 结构蒸馏项：用于保持局部结构一致性
     struct_weight = kd_cfg.get("struct_weight", 0.0)
     struct_loss_type = kd_cfg.get("struct_loss_type", "lckt")
     struct_loss_fn = None
@@ -322,19 +290,16 @@ def train_fn(cfg: DictConfig):
     # log
     if os.path.exists(cfg.exp_dir) == 0:
         os.mkdir(cfg.exp_dir)
-    # 优化器：把蒸馏损失里的可学习参数一起更新
     extra_params = list(kd_loss_fn.parameters())
     if struct_loss_fn is not None:
         extra_params += list(struct_loss_fn.parameters())
     if cfg.train.warmup_sche:
-        # 预热 + 余弦退火
         optimizer = torch.optim.AdamW(params=list(model.parameters()) + extra_params,
                                       lr=cfg.train.lr)
         lr_scheduler = WarmupCosineLR(optimizer=optimizer, lr=cfg.train.lr,
                                       warmup_steps=cfg.train.restart_num * len(dataloader), momentum=0.9,
                                       max_steps=len(dataloader) * (cfg.train.epochs - cfg.train.restart_num))
     else:
-        # 固定步长衰减
         optimizer = torch.optim.AdamW(params=list(model.parameters()) + extra_params,
                                       lr=cfg.train.lr, weight_decay=cfg.train.weight_decay)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=80, gamma=0.5)
@@ -343,7 +308,6 @@ def train_fn(cfg: DictConfig):
 
     start_epoch = 0
 
-    # 统计项（包含 kd_loss）
     to_plot = ("loss", "lr", "diffloss", "kd_loss", "struct_loss", "error_t", "error_q")
 
     stats = VizStats(to_plot)
@@ -354,14 +318,11 @@ def train_fn(cfg: DictConfig):
     best_val_epoch_q = None
 
     for epoch in range(start_epoch, num_epochs):
-        # 每个 epoch 重置统计
         stats.new_epoch()
 
         set_seed_and_print(cfg.seed + epoch)
 
-        # 评估：从 epoch 150 开始按 eval_interval 进行，并记录最优模型
         if (epoch >= 150):
-            # 验证：调用同一套 forward，但关闭训练分支
             print(f"----------Start to eval at epoch {epoch}----------")
             val_error_t, val_error_q = _train_or_eval_fn(
                 model,
@@ -417,7 +378,6 @@ def train_fn(cfg: DictConfig):
         else:
             print(f"----------Skip the eval at epoch {epoch}----------")
 
-        # 训练：包含蒸馏损失
         print(f"----------Start to train at epoch {epoch}----------")
         _train_or_eval_fn(
             model,
@@ -453,7 +413,6 @@ def train_fn(cfg: DictConfig):
                     continue
                 if vals is None or len(vals) == 0:
                     continue
-                # 仅记录本 epoch 的均值，避免刷屏
                 writer.add_scalar(f"{mode}/{metric}", vals[-1], epoch)
         writer.flush()
         print(f"----------Done----------")
@@ -465,7 +424,6 @@ def train_fn(cfg: DictConfig):
 
 def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterion, dataloader, cfg, optimizer, stats,
                       lr_scheduler, epoch=None, training=True, device=None):
-    # 训练/评估共用的迭代函数，避免重复逻辑
     if training:
         model.train()
     else:
@@ -479,7 +437,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
     pose_s = torch.from_numpy(pose_s).to(device)
     pose_m = torch.from_numpy(pose_m).to(device)
 
-    # 蒸馏超参
     kd_cfg = cfg.get("KD", {})
     kd_weight = kd_cfg.get("weight", 1.0)
     kd_loss_type = kd_cfg.get("loss_type", "entropy")
@@ -497,7 +454,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
     sum_error_q = 0.0
     total_frames = 0
     for step, batch in enumerate(tqdm_loader):
-        # batch 是一个 clip（多帧），形状 [B, N, C, H, W]
         images = batch["image"].to(device)  # [B, N, 5, 32, 512]
         batch_size, frame_size = images.size(0), images.size(1)
         poses = batch["pose"].to(device)  # [B, N, 6]
@@ -505,16 +461,13 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
         pose_flat = poses.reshape(batch_size * frame_size, 6)
 
         if training:
-            # 学生前向：得到扩散损失与蒸馏特征
             predictions = model(images, poses, training=True)
             predictions["diffloss"] = predictions["diffloss"]
             need_kd = kd_weight > 0.0
             need_struct = struct_weight > 0.0
             if need_kd or need_struct:
-                # 教师前向：仅用于提取蒸馏特征
                 with torch.no_grad():
                     teacher_pred = teacher_model(images, poses, training=True)
-                # 取 z_out4distil 作为蒸馏目标
                 student_feat = predictions["z_out4distil"]
                 teacher_feat = teacher_pred["z_out4distil"]
             else:
@@ -523,7 +476,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
 
             if need_kd:
                 if kd_loss_type == "sigma_map":
-                    # sigma-map 分支：按帧名加载离线 sigma.npy
                     sigma_root = kd_cfg.get("sigma_map_dir", None)
                     if sigma_root is None:
                         raise ValueError("KD.sigma_map_dir is required for sigma_map loss.")
@@ -535,24 +487,20 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
                     ).to(device)
                     kd_loss = kd_loss_fn(teacher_feat, student_feat, sigma_maps) * kd_weight
                 elif kd_loss_type in ("it_corr", "it_mutual"):
-                    # ITLoss 分支：不需要 importance
                     kd_loss = kd_loss_fn(teacher_feat, student_feat, None) * kd_weight
                 else:
-                    # 构造 importance map，并计算蒸馏损失
                     importance = build_importance(teacher_feat, student_feat, kd_cfg)
                     kd_loss = kd_loss_fn(teacher_feat, student_feat, importance) * kd_weight
                 predictions["kd_loss"] = kd_loss
             else:
                 kd_loss = torch.zeros((), device=device)
                 predictions["kd_loss"] = kd_loss
-            # 结构蒸馏项：保持局部结构相似性
             if struct_loss_fn is not None and struct_weight > 0.0:
                 struct_pose = pose_flat if struct_loss_type == "lckt" else None
                 struct_loss = struct_loss_fn(teacher_feat, student_feat, struct_pose) * struct_weight
                 predictions["struct_loss"] = struct_loss
             else:
                 struct_loss = torch.zeros((), device=device)
-            # 总损失 = 扩散损失 + 蒸馏损失
             loss = predictions["diffloss"] + kd_loss + struct_loss
             predictions["loss"] = loss
         else:
@@ -560,20 +508,17 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
                 predictions = model(images, training=False)
 
         if not training:
-            # 计算误差指标仅在评估阶段，避免训练时额外开销
             frame_num = frame_size * batch_size
             pred_poses = predictions['pred_pose'].reshape(frame_num, 6)  # [B*N, 6]
             gt_poses = poses.reshape(frame_num, 6)  # [B*N, 6]
 
             # Vectorized translation error on device.
             with torch.no_grad():
-                # 平移误差（对归一化后的预测进行还原）
                 pred_t = (pred_poses[:, :3] * pose_s) + pose_m
                 gt_t = (gt_poses[:, :3] * pose_s) + pose_m
                 trans_err = torch.linalg.norm(gt_t - pred_t, dim=1)
                 predictions['error_t'] = trans_err.mean()
 
-                # 旋转误差只在评估时计算
                 pred_q = qexp_t(pred_poses[:, 3:])
                 gt_q = qexp_t(gt_poses[:, 3:])
                 dot = torch.sum(pred_q * gt_q, dim=1).abs()
@@ -582,7 +527,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
                 predictions['error_q'] = rot_err.mean()
 
         if training:
-            # 训练模式：记录统计并按间隔打印
             stats.update(predictions, time_start=time_start, stat_set="train")
             if step % cfg.train.print_interval == 0:
                 original_log_vars = stats.log_vars
@@ -591,7 +535,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
                 print(stats.print(stat_set="train", max_it=max_it))
                 stats.log_vars = original_log_vars
         else:
-            # 评估模式：记录统计与加权累计误差
             stats.update(predictions, time_start=time_start, stat_set="eval")
             if step % cfg.train.print_interval == 0:
                 print(stats.print(stat_set="eval", max_it=max_it))
@@ -603,11 +546,9 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
             total_frames += frame_num
 
         if training:
-            # 反向传播与优化
             optimizer.zero_grad()
             loss.backward()
             if cfg.train.clip_grad > 0:
-                # 梯度裁剪以稳定训练
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.train.clip_grad)
             optimizer.step()
             # Step scheduler after the optimizer to avoid skipping the first LR value.
@@ -621,7 +562,6 @@ def _train_or_eval_fn(model, teacher_model, kd_loss_fn, struct_loss_fn, criterio
 
 
 def t_error(pred_poses, gt_poses, pose_s, pose_mean):
-    # 计算平移误差的封装接口
     with torch.no_grad():
         error_t = val_translation(pred_poses, gt_poses, pose_s, pose_mean)
 
@@ -629,15 +569,6 @@ def t_error(pred_poses, gt_poses, pose_s, pose_mean):
 
 
 def val_translation(pred_p, gt_p, pose_s, pose_mean):
-    """
-    test model, compute error (numpy)
-    input:
-        pred_p: [3,]
-        gt_p: [3,]
-    returns:
-        translation error (m):
-    """
-    # 将归一化后的平移还原到真实尺度再计算欧氏距离
     pred_p = (pred_p * pose_s) + pose_mean
     gt_p = (gt_p * pose_s) + pose_mean
     error = torch.linalg.norm(gt_p - pred_p)
@@ -647,6 +578,5 @@ def val_translation(pred_p, gt_p, pose_s, pose_mean):
 
 if __name__ == '__main__':
     # oxford.yaml / nclt.yaml
-    # 默认读取 Oxford 配置，必要时可切换为 nclt.yaml
     conf = OmegaConf.load('cfgs/nclt.yaml')
     train_fn(conf)

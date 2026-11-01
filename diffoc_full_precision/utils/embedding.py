@@ -3,11 +3,9 @@ import torch.nn as nn
 import math
 from pytorch3d.renderer import HarmonicEmbedding
 # try:
-#     from pytorch3d.renderer import HarmonicEmbedding  # 优先用官方
 # except ImportError:
 #     class HarmonicEmbedding(nn.Module):
 #         """
-#         简化版 PyTorch3D HarmonicEmbedding，append_input=True，logspace=True。
 #         x: (..., D) -> (..., D * (1 + 2 * n_harmonic_functions))
 #         """
 #

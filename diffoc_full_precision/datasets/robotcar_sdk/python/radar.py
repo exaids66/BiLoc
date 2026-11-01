@@ -18,17 +18,6 @@ import cv2
 
 
 def load_radar(example_path: AnyStr) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
-    """Decode a single Oxford Radar RobotCar Dataset radar example
-    Args:
-        example_path (AnyStr): Oxford Radar RobotCar Dataset Example png
-    Returns:
-        timestamps (np.ndarray): Timestamp for each azimuth in int64 (UNIX time)
-        azimuths (np.ndarray): Rotation for each polar radar azimuth (radians)
-        valid (np.ndarray) Mask of whether azimuth data is an original sensor reading or interpolated from adjacent
-            azimuths
-        fft_data (np.ndarray): Radar power readings along each azimuth
-        radar_resolution (float): Resolution of the polar radar data (metres per pixel)
-    """
     # Hard coded configuration to simplify parsing code
     radar_resolution = np.array([0.0432], np.float32)
     encoder_size = 5600
@@ -44,77 +33,6 @@ def load_radar(example_path: AnyStr) -> Tuple[np.ndarray, np.ndarray, np.ndarray
 
 def radar_polar_to_cartesian(azimuths: np.ndarray, fft_data: np.ndarray, radar_resolution: float,
                              cart_resolution: float, cart_pixel_width: int, interpolate_crossover=True) -> np.ndarray:
-    """Convert a polar radar scan to cartesian.
-    Args:
-        azimuths (np.ndarray): Rotation for each polar radar azimuth (radians)
-        fft_data (np.ndarray): Polar radar power readings
-        radar_resolution (float): Resolution of the polar radar data (metres per pixel)
-        cart_resolution (float): Cartesian resolution (metres per pixel)
-        cart_pixel_size (int): Width and height of the returned square cartesian output (pixels). Please see the Notes
-            below for a full explanation of how this is used.
-        interpolate_crossover (bool, optional): If true interpolates between the end and start  azimuth of the scan. In
-            practice a scan before / after should be used but this prevents nan regions in the return cartesian form.
-
-    Returns:
-        np.ndarray: Cartesian radar power readings
-    Notes:
-        After using the warping grid the output radar cartesian is defined as as follows where
-        X and Y are the `real` world locations of the pixels in metres:
-         If 'cart_pixel_width' is odd:
-                        +------ Y = -1 * cart_resolution (m)
-                        |+----- Y =  0 (m) at centre pixel
-                        ||+---- Y =  1 * cart_resolution (m)
-                        |||+--- Y =  2 * cart_resolution (m)
-                        |||| +- Y =  cart_pixel_width // 2 * cart_resolution (m) (at last pixel)
-                        |||| +-----------+
-                        vvvv             v
-         +---------------+---------------+
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         +---------------+---------------+ <-- X = 0 (m) at centre pixel
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         |               |               |
-         +---------------+---------------+
-         <------------------------------->
-             cart_pixel_width (pixels)
-         If 'cart_pixel_width' is even:
-                        +------ Y = -0.5 * cart_resolution (m)
-                        |+----- Y =  0.5 * cart_resolution (m)
-                        ||+---- Y =  1.5 * cart_resolution (m)
-                        |||+--- Y =  2.5 * cart_resolution (m)
-                        |||| +- Y =  (cart_pixel_width / 2 - 0.5) * cart_resolution (m) (at last pixel)
-                        |||| +----------+
-                        vvvv            v
-         +------------------------------+
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         |                              |
-         +------------------------------+
-         <------------------------------>
-             cart_pixel_width (pixels)
-    """
     if (cart_pixel_width % 2) == 0:
         cart_min_range = (cart_pixel_width / 2 - 0.5) * cart_resolution
     else:

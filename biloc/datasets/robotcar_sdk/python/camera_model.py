@@ -20,27 +20,8 @@ from scipy.ndimage import map_coordinates
 
 
 class CameraModel:
-    """Provides intrinsic parameters and undistortion LUT for a camera.
-
-    Attributes:
-        camera (str): Name of the camera.
-        camera sensor (str): Name of the sensor on the camera for multi-sensor cameras.
-        focal_length (tuple[float]): Focal length of the camera in horizontal and vertical axis, in pixels.
-        principal_point (tuple[float]): Principal point of camera for pinhole projection model, in pixels.
-        G_camera_image (:obj: `numpy.matrixlib.defmatrix.matrix`): Transform from image frame to camera frame.
-        bilinear_lut (:obj: `numpy.ndarray`): Look-up table for undistortion of images, mapping pixels in an undistorted
-            image to pixels in the distorted image
-
-    """
 
     def __init__(self, models_dir, images_dir):
-        """Loads a camera model from disk.
-
-        Args:
-            models_dir (str): directory containing camera model files.
-            images_dir (str): directory containing images for which to read camera model.
-
-        """
         self.camera = None
         self.camera_sensor = None
         self.focal_length = None
@@ -52,21 +33,6 @@ class CameraModel:
         self.__load_lut(models_dir, images_dir)
 
     def project(self, xyz, image_size):
-        """Projects a pointcloud into the camera using a pinhole camera model.
-
-        Args:
-            xyz (:obj: `numpy.ndarray`): 3xn array, where each column is (x, y, z) point relative to camera frame.
-            image_size (tuple[int]): dimensions of image in pixels
-
-        Returns:
-            numpy.ndarray: 2xm array of points, where each column is the (u, v) pixel coordinates of a point in pixels.
-            numpy.array: array of depth values for points in image.
-
-        Note:
-            Number of output points m will be less than or equal to number of input points n, as points that do not
-            project into the image are discarded.
-
-        """
         if xyz.shape[0] == 3:
             xyz = np.stack((xyz, np.ones((1, xyz.shape[1]))))
         xyzw = np.linalg.solve(self.G_camera_image, xyz)
@@ -84,19 +50,6 @@ class CameraModel:
         return uv[:, in_img], np.ravel(xyzw[2, in_img])
 
     def undistort(self, image):
-        """Undistorts an image.
-
-        Args:
-            image (:obj: `numpy.ndarray`): A distorted image. Must be demosaiced - ie. must be a 3-channel RGB image.
-
-        Returns:
-            numpy.ndarray: Undistorted version of image.
-
-        Raises:
-            ValueError: if image size does not match camera model.
-            ValueError: if image only has a single channel.
-
-        """
         if image.shape[0] * image.shape[1] != self.bilinear_lut.shape[0]:
             raise ValueError('Incorrect image size for camera model')
 
