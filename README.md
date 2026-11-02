@@ -33,7 +33,7 @@ runtime dependencies required by the model.
 
 ```text
 BiLoc/
-├── biloc/                 # BiLoc training, KD training, and evaluation code
+├── biloc/                 # BiLoc training, KD training, evaluation, and deploy/ (prebuilt 1-bit GPU runtimes)
 ├── BHViT/                 # Minimal BHViT backbone dependency used by BiLoc
 ├── diffoc_full_precision/ # Full-precision DiffLoc teacher code for KD training
 ├── img/                   # README figures
@@ -216,6 +216,20 @@ checkpoints/
 
 `biloc/cfgs/oxford.yaml` and `biloc/cfgs/nclt.yaml` already point to
 `../checkpoints/biloc_oxford.pth` and `../checkpoints/biloc_nclt.pth`.
+
+## 1-Bit GPU Inference (Oxford)
+
+[`biloc/deploy/`](biloc/deploy/) provides prebuilt GPU runtimes for the Oxford model, in which the binary layers
+run as real 1-bit operations (bit-packed XOR + popcount). The bit-packed weights are included. There are two
+variants: `fused` (fully fused, fastest) and `eqk` (one kernel per operator).
+
+Requirements: Linux, Python 3.9, PyTorch 2.8.0+cu128 and an NVIDIA GPU of compute capability 12.0 (sm_120).
+
+```bash
+cd biloc
+python -m deploy.evaluate --dataroot ../data --variant fused   # accuracy
+python -m deploy.benchmark --dataroot ../data                  # latency
+```
 
 
 

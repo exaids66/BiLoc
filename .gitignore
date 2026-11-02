@@ -44,3 +44,6 @@ trajectory.png
 build/
 dist/
 *.egg-info/
+
+# Shipped release files (bit-packed Oxford weights of the 1-bit runtimes in biloc/deploy)
+!biloc/deploy/weights/biloc_oxford_bitpacked.pth
